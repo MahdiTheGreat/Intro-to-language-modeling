@@ -1,8 +1,9 @@
 import pandas as pd
 import requests
+from datetime import datetime
 
-# API-KEY: PXC0JBLO9YVYWF9U
-# API-KEY2:PJ5AMO1H8X3JCAEI
+# API-KEY1: PXC0JBLO9YVYWF9U
+# API-KEY2: PJ5AMO1H8X3JCAEI
 # API-KEY3: C2ARQRXUKFAUTVP1
 
 def get_news_sentiment(API_KEY='C2ARQRXUKFAUTVP1', tickers=None, topics=None, relevance_score_threshold=0.5, limit=1000, sort_by='LATEST',
@@ -34,7 +35,7 @@ start_date='20241101T0000', end_date='20241108T0000'
     response = requests.get(url, params=params)
     if response.status_code == 200:
         data = response.json()
-        print(data)
+
         if "feed" in data:
             return data["feed"]
         else:
@@ -60,6 +61,7 @@ if __name__ == "__main__":
         "summary": [],
         "sentiment_label": [],
         "sentiment_score": [],
+        "relevance_score": []
     }
 
     relevance_score_threshold = 0.5
@@ -68,6 +70,7 @@ if __name__ == "__main__":
         print("Latest News:")
         
         for article in news:
+            
             ticker_sentiment = article['ticker_sentiment']
             for i, sentiment in enumerate(ticker_sentiment):
                 if sentiment['ticker'] == ticker and float(sentiment['relevance_score']) >= relevance_score_threshold:
@@ -82,6 +85,7 @@ if __name__ == "__main__":
                     
                     data['sentiment_label'].append(ticker_sentiment[ticker_idx]['ticker_sentiment_label'])
                     data['sentiment_score'].append(ticker_sentiment[ticker_idx]['ticker_sentiment_score'])
+                    data['relevance_score'].append(ticker_sentiment[ticker_idx]['relevance_score'])
                     print(f"  Sentiment: {ticker_sentiment[ticker_idx]['ticker_sentiment_label']} (Score: {ticker_sentiment[ticker_idx]['ticker_sentiment_score']})")
                     print(f"  Relevance Score: {ticker_sentiment[ticker_idx]['relevance_score']}")
                     print(f"  URL: {article['url']}\n")
