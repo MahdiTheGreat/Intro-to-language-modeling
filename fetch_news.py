@@ -1,12 +1,32 @@
 import pandas as pd
 import requests
 from datetime import datetime
+import yfinance as yf
+import re
 
 # API-KEY1: PXC0JBLO9YVYWF9U
 # API-KEY2: PJ5AMO1H8X3JCAEI
 # API-KEY3: C2ARQRXUKFAUTVP1
 
-def get_news_sentiment(API_KEY='C2ARQRXUKFAUTVP1', tickers=None, topics=None, relevance_score_threshold=0.5, limit=1000, sort_by='LATEST',
+def extract_company_name(company_string):
+    """
+    Extracts the main company name from a given string by removing common suffixes.
+
+    Parameters:
+        company_string (str): The full company name string.
+
+    Returns:
+        str: The cleaned company name.
+    """
+    # Define a regex pattern to match common suffixes
+    pattern = r",?\s+(Inc\.|Incorporated|Corp\.|Corporation|Ltd\.|Limited|LLC|LLP|P\.L\.C\.|Co\.|Company|Group|Holdings)$"
+    
+    # Remove the suffix from the company name
+    company_name = re.sub(pattern, "", company_string, flags=re.IGNORECASE)
+    
+    return company_name.strip()
+
+def get_news_sentiment(API_KEY='C2ARQRXUKFAUTVP1', tickers=None, topics=None, limit=1000, sort_by='LATEST',
 start_date='20241101T0000', end_date='20241108T0000'
 ):
     """
@@ -28,8 +48,9 @@ start_date='20241101T0000', end_date='20241108T0000'
         "tickers": tickers,
         "topics": topics,
         "limit": limit,
-        "time_from": start_date,
-        "time_to": end_date
+        "sort_by": sort_by
+        #"time_from": start_date,
+        #"time_to": end_date
     }
 
     response = requests.get(url, params=params)
@@ -45,15 +66,19 @@ start_date='20241101T0000', end_date='20241108T0000'
         print(f"Error: {response.status_code}, {response.text}")
         return []
 
-if __name__ == "__main__":
-    
-    print("running fetch_news.py")
-    # Specify the stock ticker
-    ticker = "AAPL"
-    #ticker = input("Enter the stock ticker symbol: ").strip().upper()
+def filter_news(ticker, relevance_score_threshold=0.7):
+    """
+    Filter news articles based on relevance score and tickers.
 
+    Parameters:
+        news (list): List of news articles with metadata.
+        relevance_score_threshold (float): Minimum relevance score for an article.
+        tickers (list): List of tickers to filter.
+
+    Returns:
+        list: Filtered news articles.
+    """
     news = get_news_sentiment(tickers=ticker)
-
     data = {
         "title": [],
         "published": [],
@@ -64,33 +89,38 @@ if __name__ == "__main__":
         "relevance_score": []
     }
 
-    relevance_score_threshold = 0.5
+    # Fetch stock information
+    stock = yf.Ticker(ticker)
+    summary = stock.info
+
+    comp_names = {"longName": extract_company_name(summary['longName']), 
+                  "shortName": extract_company_name(summary['shortName'])}
 
     if news:
-        print("Latest News:")
         
         for article in news:
             
             ticker_sentiment = article['ticker_sentiment']
             for i, sentiment in enumerate(ticker_sentiment):
                 if sentiment['ticker'] == ticker and float(sentiment['relevance_score']) >= relevance_score_threshold:
-                    ticker_idx = i
-                    data['title'].append(article['title'])
-                    data['published'].append(article['time_published'])
-                    data['summary'].append(article['summary'])
-                    data['source'].append(article['source'])
-                    print(f"- {article['title']} (Published: {article['time_published']})")
-                    print(f"  Source: {article['source']}")
-                    print(f"  Summary: {article['summary']}")
-                    
-                    data['sentiment_label'].append(ticker_sentiment[ticker_idx]['ticker_sentiment_label'])
-                    data['sentiment_score'].append(ticker_sentiment[ticker_idx]['ticker_sentiment_score'])
-                    data['relevance_score'].append(ticker_sentiment[ticker_idx]['relevance_score'])
-                    print(f"  Sentiment: {ticker_sentiment[ticker_idx]['ticker_sentiment_label']} (Score: {ticker_sentiment[ticker_idx]['ticker_sentiment_score']})")
-                    print(f"  Relevance Score: {ticker_sentiment[ticker_idx]['relevance_score']}")
-                    print(f"  URL: {article['url']}\n")
+                    if comp_names['longName'] in article['summary'] or comp_names['shortName'] in article['summary']:
+                        ticker_idx = i
+                        data['title'].append(article['title'])
+                        data['published'].append(article['time_published'])
+                        data['summary'].append(article['summary'])
+                        data['source'].append(article['source'])
+                        data['sentiment_label'].append(ticker_sentiment[ticker_idx]['ticker_sentiment_label'])
+                        data['sentiment_score'].append(ticker_sentiment[ticker_idx]['ticker_sentiment_score'])
+                        data['relevance_score'].append(ticker_sentiment[ticker_idx]['relevance_score'])
 
+    # Convert to pandas dataframe and save as csv
     ticker_df = pd.DataFrame(data)
     ticker_df.to_csv(f"{str(ticker).lower()}_csv.csv")
+
+if __name__ == "__main__":
+    filter_news("TSLA")
+    
+
+   
     
 
