@@ -30,6 +30,21 @@ def generate_stock_summary(ticker):
     min_price = data['Close'].min()
     max_drawdown = ((min_price - max_price) / max_price) * 100
     
+    # Analyse trend
+    macd = (data['Close'].ewm(span=12, adjust=False).mean() - data['Close'].ewm(span=26, adjust=False).mean()).iloc[-1]
+    signal = (data['Close'].ewm(span=12, adjust=False).mean() - data['Close'].ewm(span=26, adjust=False).mean()).ewm(span=9, adjust=False).mean().iloc[-1]
+    
+    if macd > signal and macd > 0 and signal > 0:
+        trend = "trending upwards"
+    elif macd < signal and macd < 0 and signal < 0:
+        trend = "trending downwards"
+    elif macd > signal and (macd <= 0 or signal <= 0):
+        trend = "trending downwards, but recovering"
+    elif macd < signal and (macd >= 0 or signal >= 0):
+        trend = "trending upwards, but weakening"
+    else:
+        trend = "no trend"
+
     # Generate a qualitative summary
     if annual_return > 20:
         performance = "a strong growth"
@@ -57,5 +72,9 @@ def generate_stock_summary(ticker):
         f"with a maximum price of ${max_price:.2f} and a minimum price of ${min_price:.2f}. "
         f"The largest drop during the year was {abs(max_drawdown):.2f}%, indicating the stock's maximum drawdown."
     )
+    
+    # Add trend if available
+    if trend != "no trend":
+        summary += f" The stock is currently {trend}."
     
     return summary
