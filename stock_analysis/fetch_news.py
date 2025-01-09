@@ -127,7 +127,12 @@ def get_raw_news(ticker, interval="1y"):
 
     # Convert to pandas dataframe and save as csv
     ticker_df = pd.DataFrame(data)
-    ticker_df.to_csv(f"raw_data\{str(ticker).lower()}_raw.csv")
+    # Check if the folder exists
+    folder_name = "raw_data"
+    if not os.path.exists(folder_name):
+        # Create the folder
+        os.makedirs(folder_name)
+    ticker_df.to_csv(f"{folder_name}\{str(ticker).lower()}_raw.csv")
     return comp_names["longName"]
 
 def filter_news(ticker, relevance_score_threshold=0.7):
@@ -162,8 +167,9 @@ if __name__ == "__main__":
     blue_chip_stocks = ["AAPL","MSFT","KO","PG","JNJ","DIS","WMT","JPM","MCD","GE"]
     Growth_stocks = ["TSLA","AMZN","NVDA","GOOG","META","NFLX","SHOP","SQ","CRM","UBER"]
     tickers = blue_chip_stocks + Growth_stocks
-    for ticker in tickers:
-        filter_news(ticker = ticker, interval="1m")
+    #for ticker in tickers:
+    #    filter_news(ticker = ticker, interval="1m")
+    get_raw_news("TSLA")
 
     
 
