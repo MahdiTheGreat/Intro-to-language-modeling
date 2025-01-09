@@ -1,6 +1,6 @@
 import pandas as pd
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 import yfinance as yf
 import re
 
@@ -26,8 +26,8 @@ def extract_company_name(company_string):
     
     return company_name.strip()
 
-def get_news_sentiment(API_KEY='C2ARQRXUKFAUTVP1', tickers=None, topics=None, limit=1000, sort_by='LATEST',
-start_date='20241101T0000', end_date='20241108T0000'
+def get_news_sentiment(API_KEY='C2ARQRXUKFAUTVP1', tickers=None, topics=None, limit=10000, sort_by='LATEST',
+start_date=None
 ):
     """
     Fetch news and sentiment data from Alpha Vantage.
@@ -48,12 +48,12 @@ start_date='20241101T0000', end_date='20241108T0000'
         "tickers": tickers,
         "topics": topics,
         "limit": limit,
-        "sort_by": sort_by
-        #"time_from": start_date,
-        #"time_to": end_date
+        "sort_by": sort_by,
+        "time_from": start_date,
     }
 
     response = requests.get(url, params=params)
+
     if response.status_code == 200:
         data = response.json()
 
@@ -66,7 +66,7 @@ start_date='20241101T0000', end_date='20241108T0000'
         print(f"Error: {response.status_code}, {response.text}")
         return []
 
-def filter_news(ticker, relevance_score_threshold=0.7):
+def filter_news(ticker, relevance_score_threshold=0.7, interval="1w"):
     """
     Filter news articles based on relevance score and tickers.
 
@@ -78,7 +78,17 @@ def filter_news(ticker, relevance_score_threshold=0.7):
     Returns:
         list: Filtered news articles.
     """
-    news = get_news_sentiment(tickers=ticker)
+
+    if interval == "1w":
+        start_date = datetime.today() - timedelta(days=7)
+        start_date = start_date.strftime('%Y%m%dT%H%M')
+    elif interval == "1m":
+        start_date = datetime.today() - timedelta(days=31)
+        start_date = start_date.strftime('%Y%m%dT%H%M')
+    else:
+        start_date = None
+
+    news = get_news_sentiment(tickers=ticker, start_date=start_date)
     data = {
         "title": [],
         "published": [],
@@ -102,23 +112,29 @@ def filter_news(ticker, relevance_score_threshold=0.7):
             
             ticker_sentiment = article['ticker_sentiment']
             for i, sentiment in enumerate(ticker_sentiment):
-                if sentiment['ticker'] == ticker and float(sentiment['relevance_score']) >= relevance_score_threshold:
-                    if comp_names['longName'] in article['summary'] or comp_names['shortName'] in article['summary']:
-                        ticker_idx = i
-                        data['title'].append(article['title'])
-                        data['published'].append(article['time_published'])
-                        data['summary'].append(article['summary'])
-                        data['source'].append(article['source'])
-                        data['sentiment_label'].append(ticker_sentiment[ticker_idx]['ticker_sentiment_label'])
-                        data['sentiment_score'].append(ticker_sentiment[ticker_idx]['ticker_sentiment_score'])
-                        data['relevance_score'].append(ticker_sentiment[ticker_idx]['relevance_score'])
+                #if sentiment['ticker'] == ticker and float(sentiment['relevance_score']) >= relevance_score_threshold:
+                    #if comp_names['longName'] in article['summary'] or ticker in article['summary']:
+                ticker_idx = i
+                data['title'].append(article['title'])
+                data['published'].append(article['time_published'])
+                data['summary'].append(article['summary'])
+                data['source'].append(article['source'])
+                data['sentiment_label'].append(ticker_sentiment[ticker_idx]['ticker_sentiment_label'])
+                data['sentiment_score'].append(ticker_sentiment[ticker_idx]['ticker_sentiment_score'])
+                data['relevance_score'].append(ticker_sentiment[ticker_idx]['relevance_score'])
 
     # Convert to pandas dataframe and save as csv
     ticker_df = pd.DataFrame(data)
-    ticker_df.to_csv(f"{str(ticker).lower()}_csv.csv")
-
+    ticker_df.to_csv(f"data\{str(ticker).lower()}_csv.csv")
+    return ticker_df, comp_names["longName"]
+    
 if __name__ == "__main__":
-    filter_news("TSLA")
+    blue_chip_stocks = ["AAPL","MSFT","KO","PG","JNJ","DIS","WMT","JPM","MCD","GE"]
+    Growth_stocks = ["TSLA","AMZN","NVDA","GOOG","META","NFLX","SHOP","SQ","CRM","UBER"]
+    tickers = blue_chip_stocks + Growth_stocks
+    for ticker in tickers:
+        filter_news(ticker = ticker, interval="1m")
+
     
 
    
