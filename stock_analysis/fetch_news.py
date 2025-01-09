@@ -132,7 +132,11 @@ def get_raw_news(ticker, interval="1y"):
     if not os.path.exists(folder_name):
         # Create the folder
         os.makedirs(folder_name)
-    ticker_df.to_csv(f"{folder_name}\{str(ticker).lower()}_raw.csv")
+
+    # File name and path
+    file_name = f"{str(ticker).lower()}_raw.csv"
+    file_path = os.path.join(folder_name, file_name)
+    ticker_df.to_csv(file_path)
     return comp_names["longName"]
 
 def filter_news(ticker, relevance_score_threshold=0.7):
