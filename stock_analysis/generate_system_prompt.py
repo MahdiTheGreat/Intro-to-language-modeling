@@ -1,10 +1,11 @@
-from fetch_news import filter_news
+from fetch_news import filter_news, get_raw_news
 from fetch_company_summary import stock_info_to_text
 import pandas as pd
 
 def get_system_prompt(ticker):
 
-    news_df, comp_name = filter_news(ticker, interval="1m")
+    comp_name = get_raw_news(ticker, interval="1y")
+    news_df = filter_news(ticker, relevance_score_threshold=0.7)
     company_summary = stock_info_to_text(ticker)
     # Start with the company summary
     prompt = (

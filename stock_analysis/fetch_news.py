@@ -3,6 +3,7 @@ import requests
 from datetime import datetime, timedelta
 import yfinance as yf
 import re
+import os
 
 # API-KEY1: PXC0JBLO9YVYWF9U
 # API-KEY2: PJ5AMO1H8X3JCAEI
@@ -26,7 +27,7 @@ def extract_company_name(company_string):
     
     return company_name.strip()
 
-def get_news_sentiment(API_KEY='C2ARQRXUKFAUTVP1', tickers=None, topics=None, limit=10000, sort_by='LATEST',
+def get_news_sentiment(API_KEY='C2ARQRXUKFAUTVP1', tickers=None, topics=None, limit=None, sort_by='LATEST',
 start_date=None
 ):
     """
@@ -66,7 +67,7 @@ start_date=None
         print(f"Error: {response.status_code}, {response.text}")
         return []
 
-def filter_news(ticker, relevance_score_threshold=0.7, interval="1w"):
+def get_raw_news(ticker, interval="1y"):
     """
     Filter news articles based on relevance score and tickers.
 
@@ -84,6 +85,9 @@ def filter_news(ticker, relevance_score_threshold=0.7, interval="1w"):
         start_date = start_date.strftime('%Y%m%dT%H%M')
     elif interval == "1m":
         start_date = datetime.today() - timedelta(days=31)
+        start_date = start_date.strftime('%Y%m%dT%H%M')
+    elif interval == "1y":
+        start_date = datetime.today() - timedelta(days=365)
         start_date = start_date.strftime('%Y%m%dT%H%M')
     else:
         start_date = None
@@ -112,8 +116,6 @@ def filter_news(ticker, relevance_score_threshold=0.7, interval="1w"):
             
             ticker_sentiment = article['ticker_sentiment']
             for i, sentiment in enumerate(ticker_sentiment):
-                #if sentiment['ticker'] == ticker and float(sentiment['relevance_score']) >= relevance_score_threshold:
-                    #if comp_names['longName'] in article['summary'] or ticker in article['summary']:
                 ticker_idx = i
                 data['title'].append(article['title'])
                 data['published'].append(article['time_published'])
@@ -125,8 +127,36 @@ def filter_news(ticker, relevance_score_threshold=0.7, interval="1w"):
 
     # Convert to pandas dataframe and save as csv
     ticker_df = pd.DataFrame(data)
-    ticker_df.to_csv(f"data\{str(ticker).lower()}_csv.csv")
-    return ticker_df, comp_names["longName"]
+    ticker_df.to_csv(f"raw_data\{str(ticker).lower()}_raw.csv")
+    return comp_names["longName"]
+
+def filter_news(ticker, relevance_score_threshold=0.7):
+
+    """
+    Filter a DataFrame from a CSV file if it exists in the 'raw_data' folder.
+    
+    Parameters:
+        ticker (str): Ticker symbol of the stock.
+        filter_conditions (dict): Conditions to filter the DataFrame (e.g., column: value pairs).
+    
+    Returns:
+        pd.DataFrame: Filtered DataFrame.
+    
+    Raises:
+        FileNotFoundError: If the raw data CSV file does not exist.
+    """
+    file_path = f"raw_data/{str(ticker).lower()}_raw.csv"
+
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f"The file '{file_path}' does not exist in the 'raw_data' folder.")
+    
+    # Load the CSV into a DataFrame
+    df = pd.read_csv(file_path)
+    
+    # Apply filtering
+    df[df['relevance_score'] > relevance_score_threshold]
+    
+    return df
     
 if __name__ == "__main__":
     blue_chip_stocks = ["AAPL","MSFT","KO","PG","JNJ","DIS","WMT","JPM","MCD","GE"]
